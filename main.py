@@ -113,20 +113,25 @@ class User(db.Model):
 	email = db.StringProperty()
 
 #class functions that can be run on class User instead of an instance of the class
+
+#get user with userid
 	@classmethod
 	def by_id(cls, uid):
 		return User.get_by_id(uid, parent = users_key())
 
+#get user by name
 	@classmethod
 	def by_name(cls, name):
 		u = User.all().filter("name =", name).get()
 		return u
 
+#hash password when registering
 	@classmethod
 	def register(cls, name, pw, email = None):
 		pw_hash = make_pw_hash(name, pw)
 		return User(parent = users_key(), name = name, pw_hash = pw_hash, email = email)
 
+#check hashed password when logging in
 	@classmethod
 	def login(cls, name, pw):
 		u=cls.by_name(name)
@@ -141,6 +146,7 @@ class Post(db.Model):
 	last_modified = db.DateTimeProperty(auto_now = True)
 	user = db.ReferenceProperty(User, required = True, collection_name = "posts")
 
+#renders line breaks correctly after posting
 	def render(self):
 		self._render_text = self.content.replace("\n", "<br>")
 		return render_str("post.html", p=self)
@@ -276,22 +282,27 @@ class MainPage(Handler):
 #permalink page of post after successfully submitted from new post page
 class PostPage(Handler):
 	def get(self, post_id):
+#gets key of the post
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 
+#if post does not exist report error
 		if not post:
 			self.error(404)
 			return
 
+#get likes and comments for each post searched by post key (id)
 		likes = Likes.post_likes(post)
 		comment_content = Comments.post_comments(post)
 		comments_total = Comments.comment_count(post)
 
-
+#render page with content, likes, comments, and buttons to interact with
 		self.render("permalink.html", post = post, likes = likes,
 			comments_total = comments_total, comment_content = comment_content)
 
+
 	def post(self, post_id):
+#gets required parameters
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 		user_id = User.by_name(self.user.name)
@@ -300,26 +311,35 @@ class PostPage(Handler):
 		comment_content = Comments.post_comments(post)
 		comments_total = Comments.comment_count(post)
 
+#checks if user is logged in
 		if self.user:
+#checks if the user clicked on like
 			if self.request.get("likes"):
+#checks and makes sure user is not the author of the post
 				if post.user.key().id() != User.by_name(self.user.name).key().id():
+#checks to make sure user has not liked the post previuosly
 					if prev_like == 0:
+#likes the post. increments likes by 1
 						l = Likes(post = post, user = User.by_name(self.user.name))
 						l.put()
 						time.sleep(0.1)
 						self.redirect("/%s" % str(post.key().id()))#could use % post_id
 
+#if post already liked throws an error
 					else:
 						error = "You can only like a post once"
 						self.render("permalink.html", post = post, likes = likes, error = error,
 							comment_content = comment_content, comments_total = comments_total)
 
+#if user is the author of post throws an error
 				else:
 					error = "You can't like your own post"
 					self.render("permalink.html", post = post, likes = likes, error = error,
 						comments_total = comments_total, comment_content = comment_content)
 
+#checks to see if user wanted to add a comment
 			if self.request.get("add_comment"):
+#if the comment is not empty comment is posted and stored in database.
 				comment_text = self.request.get("comment_text")
 				if comment_text:
 					c = Comments(post = post, user = User.by_name(self.user.name), text = comment_text)
@@ -327,31 +347,39 @@ class PostPage(Handler):
 					time.sleep(0.2)
 					self.redirect("/%s" % str(post.key().id()))#could use % post_id
 
+#if there is no content in the comment field throws an error.
 				else:
 					comment_error = "You need to enter a comment before you can post it"
 					self.render("permalink.html", post = post, likes=likes,  comment_error= comment_error,
 						comment_content = comment_content, comments_total = comments_total)
 
+#checks to see if user clicked edit post
 			if self.request.get("edit"):
+#checks to see if user is the author of the post and if they are lets them edit it
 				if post.user.key().id() == User.by_name(self.user.name).key().id():
 					self.redirect("/edit/%s" % str(post.key().id()))#could use % post_id
 
+#if user is not the author throws an error
 				else:
 					error = "This post is not yours. You cannot edit it."
 					self.render("permalink.html", post = post, likes = likes, error = error,
 						comments_total = comments_total, comment_content = comment_content)
 
+#checks to see if user clicked delete
 			if self.request.get("delete"):
+#checks to see if user is the author of psot and if they are lets them delete it
 				if post.user.key().id() == User.by_name(self.user.name).key().id():
 					db.delete(key)
 					time.sleep(0.1)
 					self.redirect("/")
 
+#if the user is not the author throws an error
 				else:
 					error = "You can only delete your own posts"
 					self.render("permalink.html", likes = likes, post = post, error = error,
 						comment_content = comment_content, comments_total = comments_total)
 
+#if the user is not signed in redirected to the login page
 		else:
 			self.redirect("/login")
 
@@ -379,22 +407,29 @@ class NewPost(Handler):
 			error = "Subject and content are both required!"
 			self.render("newpost.html", subject = subject, content = content, error = error)
 
+#handler for editing a post
 class EditPost(Handler):
 
 	def get(self, post_id):
+#gets the post key
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 
+#renders edit page with post subject and content filled in with data from the datastore
 		self.render("edit.html", subject = post.subject, content = post.content)
 
+
 	def post(self, post_id):
+#gets the post key
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 
+#if user clicks update get the subject and the content from the form
 		if self.request.get("update"):
 			subject = self.request.get("subject")
 			content = self.request.get("content")
 
+#if user provides subject and content update the post and save it in the datastore
 			if subject and content:
 
 				post.subject = subject
@@ -403,26 +438,35 @@ class EditPost(Handler):
 				time.sleep(0.1)
 				self.redirect("/%s" % str(post.key().id()))#could use % post_id
 
+#if user does not provide both a subject and content throw an error
 			else:
 				error = "Subject and content are both needed"
 				self.render("edit.html", subject = subject, content = content, error = error)
 
+#if user clicks cancel redirect to the permalink post page
 		elif self.request.get("cancel"):
 			self.redirect("/%s" % str(post.key().id()))#could use % post_id
 
+#handler for posting comments
 class PostComment(Handler):
 	def get(self, post_id, comment_id):
+
+#gets post and comment from post id and comment id
 		post = Post.get_by_id(int(post_id), parent=blog_key())
 		comment = Comments.get_by_id(int(comment_id))
 
+#renders the comment edit page
 		self.render("comment.html", comment_text = comment.text)
 
 	def post(self, post_id, comment_id):
+
+#gets post key and comment id
 
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 		comment = Comments.get_by_id(int(comment_id))
 
+#if user clicks update comment and there is text in the textbox update the comment datastore with the new input
 		if self.request.get("update_comment"):
 
 
@@ -433,17 +477,23 @@ class PostComment(Handler):
 				time.sleep(0.1)
 				self.redirect("/%s" % str(post.key().id()))
 
+#if the comment has no content throw an error
 			else:
 				error = "Comment needs to have content"
 				self.render("comment.html", error = error)
 
+#if user clicks cancel to edit comment redirect to permalink post page
 		elif self.request.get("cancel_comment"):
 			self.redirect("/%s" % str(post.key().id()))
 
+#handler for deleting comment
 class DeleteComment(Handler):
 	def get(self, post_id, comment_id):
+
+#get the comment by comment id
 		comment = Comments.get_by_id(int(comment_id))
 
+#delete the comment and redirect to permalink post page
 		if comment:
 			db.delete(comment)
 			time.sleep(0.1)

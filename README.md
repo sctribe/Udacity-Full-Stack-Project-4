@@ -5,6 +5,8 @@ and Google App Engine.
 
 ## Running the Project
 
-Users need to navigate to this [link](https://blogproject-145220.appspot.com/) to access a live version of this project.
-Note that upon registering or logging in a user will see a welcome page for 4 seconds before being redirected to the
+Users need to navigate to this [link](https://blogproject-145823.appspot.com/) to access a live version of this project.
+Note that upon registering the user will see a welcome page for 3 seconds before being redirected to the
 front page of the blog.
+
+Returning users are automatically redirected to the front page upon successful login.
