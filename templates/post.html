@@ -1,11 +1,13 @@
 <div class="post">
 	<div class="post-heading">
 		<div class="post-title">
-			{{p.subject}}
+			<a class = "post-title" href="/{{p.key().id()}}">
+				{{p.subject}}
+			</a>
 		</div>
 
 		<div class="post-date">
-			{{p.created.strftime("%b %d, %Y")}}
+		 	Posted by {{p.user.name}} on {{p.created.strftime("%b %d, %Y")}}
 		</div>
 
 	</div>

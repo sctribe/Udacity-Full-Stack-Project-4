@@ -55,7 +55,7 @@ textarea {
 input[type=submit] {
   font-size: 24px;
   float: right;
-  margin-right: 185px;
+  margin-right: 20px;
 }
 
 #newpost-submit {
@@ -66,6 +66,11 @@ input[type=submit] {
     margin-right: 220px;
 }
 
+.post-buttons {
+    display: flex;
+    flex-direction: row;
+    float: right;
+}
 .main-title {
     display: block;
     color: #222;
@@ -79,36 +84,24 @@ input[type=submit] {
 .top-buttons{
 
     color: #222;
-    font-size: 16px;
+    font-size: 20px;
     font-weight: bold;
     text-decoration: none;
 }
 
-.links {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    width:800px;
-    margin-bottom: 40px;
-}
 
 .links-right {
     display: flex;
     flex-direction: column;
+    float: right;
+}
+
+.edit_buttons {
+    display: flex;
 }
 
 #signup:hover, #login:hover, #logout:hover{
     color: red;
-}
-
-
-#newpost {
-    color: #222;
-    font-size: 20px;
-    font-weight: bold;
-    text-decoration: none;
-
 }
 
 #newpost:hover {
@@ -127,6 +120,8 @@ input[type=submit] {
 .post-title {
     font-size: 24px;
     font-weight: bold;
+    text-decoration: none;
+    color: #222;
 }
 
 .post-date {
@@ -137,6 +132,39 @@ input[type=submit] {
 
 }
 
+.comment_text {
+    width:500px;
+    height:200px;
+}
+
+.user_name {
+    font-size: 22px;
+    color: red;
+
+}
+
+.comment_atr {
+    display: flex;
+}
+.comment_buttons {
+    margin-left: 550px;
+    color: blue;
+}
+.comment_details {
+    float: left;
+}
+
+.user_name_intro {
+    font-size: 12px;
+}
+.edit_textbox {
+    width:600px;
+    height:400px;"
+}
+
+#comment_add_button {
+    float: left;
+}
 .post-content {
     margin-top: 5px;
 }

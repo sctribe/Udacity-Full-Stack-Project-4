@@ -17,6 +17,8 @@ jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir), a
 #secret used in hmac password hash
 secret = "GnO>uHlmri[g2}<|Rl<6fc{SftpZkmN0"
 
+
+##GLOBAL FUNCTIONS
 #functions for checking and presenting hashed password in a cookie
 def make_secure_val(val):
 	return "%s|%s" % (val, hmac.new(secret, val).hexdigest())
@@ -32,7 +34,7 @@ def render_str(template, **params):
 		t = jinja_env.get_template(template)
 		return t.render(params)
 
-#functions for hashing user password
+#functions for salting and hashing user password
 def make_salt(length = 5):
 	return "".join(random.choice(letters) for x in xrange(length))
 
@@ -46,7 +48,7 @@ def valid_pw(name, password, h):
 	salt = h.split(",")[0]
 	return h == make_pw_hash(name, password, salt)
 
-#Users parent and Posts Parent
+#Users database parent and Posts database parent. Gets key from respective db
 def users_key(group = "default"):
 	return db.Key.from_path("users", group)
 
@@ -73,7 +75,9 @@ class Handler(webapp2.RequestHandler):
 
 #Not needed since it is a global function
 	def render_str(self, template, **params):
-		#params["user"] = self.user
+
+		#allows for sending "user" to the template. checks to see if user is signed in.
+		params["user"] = self.user
 		return render_str(template, **params)
 
 	def render(self, template, **kw):
@@ -135,10 +139,48 @@ class Post(db.Model):
 	content = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
 	last_modified = db.DateTimeProperty(auto_now = True)
+	user = db.ReferenceProperty(User, required = True, collection_name = "posts")
 
 	def render(self):
 		self._render_text = self.content.replace("\n", "<br>")
 		return render_str("post.html", p=self)
+
+#creates like database
+class Likes(db.Model):
+	post = db.ReferenceProperty(Post, required= True)
+	user = db.ReferenceProperty(User, required = True)
+
+#get number of likes for a post by id
+	@classmethod
+	def post_likes(cls, post_id):
+		l=Likes.all().filter("post =", post_id)
+		return l.count()
+
+#get number of likes for a post and user id
+	@classmethod
+	def check_likes(cls, post_id, user_id):
+		l=Likes.all().filter("post =", post_id).filter("user =", user_id)
+		return l.count()
+
+##creates comment database
+class Comments(db.Model):
+	post = db.ReferenceProperty(Post, required = True)
+	user = db.ReferenceProperty(User, required = True)
+	created = db.DateTimeProperty(auto_now_add = True)
+	text = db.TextProperty(required = True)
+
+#returns number of comments a post has
+	@classmethod
+	def comment_count(cls, post_id):
+		c = Comments.all().filter("post =", post_id)
+		return c.count()
+
+#returns all the comments for a specific post
+	@classmethod
+	def post_comments(cls, post_id):
+		c = Comments.all().filter("post =", post_id).order("created")
+		return c
+
 
 #register page handler
 class Signup(Handler):
@@ -206,7 +248,7 @@ class Login(Handler):
 		u = User.login(username, password)
 		if u:
 			self.login(u)
-			self.redirect("/welcome")
+			self.redirect("/")
 		else:
 			msg = "Invalid Login"
 			self.render("login.html", error = msg)
@@ -241,20 +283,95 @@ class PostPage(Handler):
 			self.error(404)
 			return
 
+		likes = Likes.post_likes(post)
+		comment_content = Comments.post_comments(post)
+		comments_total = Comments.comment_count(post)
 
-		self.render("permalink.html", post = post)
+
+		self.render("permalink.html", post = post, likes = likes,
+			comments_total = comments_total, comment_content = comment_content)
+
+	def post(self, post_id):
+		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
+		post = db.get(key)
+		user_id = User.by_name(self.user.name)
+		likes = Likes.post_likes(post)
+		prev_like = Likes.check_likes(post, user_id)
+		comment_content = Comments.post_comments(post)
+		comments_total = Comments.comment_count(post)
+
+		if self.user:
+			if self.request.get("likes"):
+				if post.user.key().id() != User.by_name(self.user.name).key().id():
+					if prev_like == 0:
+						l = Likes(post = post, user = User.by_name(self.user.name))
+						l.put()
+						time.sleep(0.1)
+						self.redirect("/%s" % str(post.key().id()))#could use % post_id
+
+					else:
+						error = "You can only like a post once"
+						self.render("permalink.html", post = post, likes = likes, error = error,
+							comment_content = comment_content, comments_total = comments_total)
+
+				else:
+					error = "You can't like your own post"
+					self.render("permalink.html", post = post, likes = likes, error = error,
+						comments_total = comments_total, comment_content = comment_content)
+
+			if self.request.get("add_comment"):
+				comment_text = self.request.get("comment_text")
+				if comment_text:
+					c = Comments(post = post, user = User.by_name(self.user.name), text = comment_text)
+					c.put()
+					time.sleep(0.2)
+					self.redirect("/%s" % str(post.key().id()))#could use % post_id
+
+				else:
+					comment_error = "You need to enter a comment before you can post it"
+					self.render("permalink.html", post = post, likes=likes,  comment_error= comment_error,
+						comment_content = comment_content, comments_total = comments_total)
+
+			if self.request.get("edit"):
+				if post.user.key().id() == User.by_name(self.user.name).key().id():
+					self.redirect("/edit/%s" % str(post.key().id()))#could use % post_id
+
+				else:
+					error = "This post is not yours. You cannot edit it."
+					self.render("permalink.html", post = post, likes = likes, error = error,
+						comments_total = comments_total, comment_content = comment_content)
+
+			if self.request.get("delete"):
+				if post.user.key().id() == User.by_name(self.user.name).key().id():
+					db.delete(key)
+					time.sleep(0.1)
+					self.redirect("/")
+
+				else:
+					error = "You can only delete your own posts"
+					self.render("permalink.html", likes = likes, post = post, error = error,
+						comment_content = comment_content, comments_total = comments_total)
+
+		else:
+			self.redirect("/login")
+
 
 #new post handler renders new post page and checks to make sure content and subject are provided before commiting to datastore
 class NewPost(Handler):
 	def get(self):
-		self.render("newpost.html")
+
+		if self.user:
+			self.render("newpost.html")
+		else:
+			self.redirect("/login")
 
 	def post(self):
 		subject = self.request.get("subject")
 		content = self.request.get("content")
+		user_id = User.by_name(self.user.name)
 
 		if subject and content:
-			p = Post(parent = blog_key(), subject = subject, content = content)
+			p = Post(parent = blog_key(), subject = subject, content = content, user = user_id)
 			p.put()
 			self.redirect("/%s" % str(p.key().id()))
 
@@ -262,10 +379,84 @@ class NewPost(Handler):
 			error = "Subject and content are both required!"
 			self.render("newpost.html", subject = subject, content = content, error = error)
 
+class EditPost(Handler):
+
+	def get(self, post_id):
+		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
+		post = db.get(key)
+
+		self.render("edit.html", subject = post.subject, content = post.content)
+
+	def post(self, post_id):
+		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
+		post = db.get(key)
+
+		if self.request.get("update"):
+			subject = self.request.get("subject")
+			content = self.request.get("content")
+
+			if subject and content:
+
+				post.subject = subject
+				post.content = content
+				post.put()
+				time.sleep(0.1)
+				self.redirect("/%s" % str(post.key().id()))#could use % post_id
+
+			else:
+				error = "Subject and content are both needed"
+				self.render("edit.html", subject = subject, content = content, error = error)
+
+		elif self.request.get("cancel"):
+			self.redirect("/%s" % str(post.key().id()))#could use % post_id
+
+class PostComment(Handler):
+	def get(self, post_id, comment_id):
+		post = Post.get_by_id(int(post_id), parent=blog_key())
+		comment = Comments.get_by_id(int(comment_id))
+
+		self.render("comment.html", comment_text = comment.text)
+
+	def post(self, post_id, comment_id):
+
+		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
+		post = db.get(key)
+		comment = Comments.get_by_id(int(comment_id))
+
+		if self.request.get("update_comment"):
+
+
+			if self.request.get("comment_text"):
+
+				comment.text = self.request.get("comment_text")
+				comment.put()
+				time.sleep(0.1)
+				self.redirect("/%s" % str(post.key().id()))
+
+			else:
+				error = "Comment needs to have content"
+				self.render("comment.html", error = error)
+
+		elif self.request.get("cancel_comment"):
+			self.redirect("/%s" % str(post.key().id()))
+
+class DeleteComment(Handler):
+	def get(self, post_id, comment_id):
+		comment = Comments.get_by_id(int(comment_id))
+
+		if comment:
+			db.delete(comment)
+			time.sleep(0.1)
+			self.redirect("/%s" % str(post_id))
+
+
 app = webapp2.WSGIApplication([('/', MainPage),
 							   ("/newpost", NewPost),
 							   ("/([0-9]+)", PostPage),
 							   ("/signup", Register),
 							   ("/login", Login),
 							   ("/logout", Logout),
-							   ("/welcome", Welcome)], debug=True)
+							   ("/welcome", Welcome),
+							   ("/edit/([0-9]+)", EditPost),
+							   ("/([0-9]+)/comment/([0-9]+)", PostComment),
+							   ("/([0-9]+)/deletecomment/([0-9]+)", DeleteComment)], debug=True)

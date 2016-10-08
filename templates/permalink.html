@@ -2,4 +2,53 @@
 
 {% block content %}
 	{{post.render() | safe}}
+
+	{% if user %}
+	<br><br>
+    <form class = "post-buttons" method="POST">
+        <input type="submit" name='likes' value='{{likes}} Likes'>
+        <input type="submit" name='edit' value='Edit'>
+        <input type="submit" name='delete' value="Delete">
+    </form>
+    <br><br>
+    <span class="error">{{error}}</span>
+    <br>
+	{% endif %}
+	<br>
+	<div>Comment Count: {{comments_total}}</div>
+
+	{% for comment in comment_content %}
+
+
+    	<div class="panel panel-default">
+        	<div class="panel-body">
+        	<br>
+            	<div>{{comment.text}}</div><hr>
+
+            	<div class="comment_atr">
+                	<div class="comment_details">
+                    	<small>Posted by {{comment.user.name}} on {{comment.created.strftime("%b %d, %Y")}}</small>
+                	</div>
+                	<div class="comment_buttons">
+                    	{% if comment.user.name == user.name %}
+                        	<a style="color:blue" href="/{{post.key().id()}}/comment/{{comment.key().id()}}">edit</a> |
+                        	<a style="color:blue" href="/{{post.key().id()}}/deletecomment/{{comment.key().id()}}">delete</a>
+                    	{% endif %}
+                	</div>
+            	</div>
+        	</div>
+    	</div>
+		{% endfor %}
+		<br><br>
+	{% if user %}
+	    <form method="POST">
+	        <label>
+	            Add Comment<br>
+	            <textarea class="comment_text" name="comment_text">{{comment_text | safe}}</textarea>
+	        </label>
+	        <br>
+	        <div class="error">{{comment_error}}</div>
+	        <input type="submit" id="comment_add_button" name="add_comment" value="Post">
+	    </form>
+	{% endif %}
 {% endblock%}

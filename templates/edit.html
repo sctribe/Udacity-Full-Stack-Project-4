@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<hr>
+<h1>Edit Post</h1>
+<form method="POST">
+    <label>
+        Subject<br>
+        <input class="edit_subjectbox" type="text" name="subject" value="{{subject}}">
+    </label>
+    <br><br>
+    <label>
+        Content<br>
+        <textarea class="edit_textbox" name="content">{{content}}</textarea>
+    </label>
+    <br>
+    <div class="error">{{error}}</div>
+    <div class="edit-buttons">
+        <input class = "edit_update" type="submit" name="update" value="Update">
+        <input class = "edit_cancel" type="submit" name="cancel" value="Cancel">
+    </div>
+</form>
+{% endblock %}

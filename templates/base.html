@@ -10,6 +10,26 @@
 
 	<br>
 
+	{% if user %}
+		<div class="user_name_intro">Signed in as <span class="user_name">{{user.name}}</span></div>
+	{% endif %}
+
+	{% if not user %}
+		<div class="links-right">
+			<a href="/signup" id="signup" class="top-buttons">Register</a>
+			<a href="/login" id ="login" class="top-buttons">Login</a>
+		</div>
+
+	{% elif user %}
+		<div class="links-right">
+			<a href="/newpost" id="newpost" class="top-buttons">New Post</a>
+			<a href="/logout" id ="logout" class="top-buttons">Logout</a>
+		</div>
+
+
+	{% endif %}
+	<br><br><br><br>
+
 	<div id="content">
 	{% block content %}
 	{% endblock %}
