@@ -83,7 +83,7 @@ class Handler(webapp2.RequestHandler):
 	def render(self, template, **kw):
 		self.write(self.render_str(template, **kw))
 
-#Sets a cookie for the user id
+	#Sets a cookie for the user id
 	def set_secure_cookie(self, name, val):
 		cookie_val = make_secure_val(val)
 		self.response.headers.add_header("Set-Cookie", "%s=%s; Path=/" % (name, cookie_val))
@@ -92,15 +92,15 @@ class Handler(webapp2.RequestHandler):
 		cookie_val = self.request.cookies.get(name)
 		return cookie_val and check_secure_val(cookie_val)
 
-#function that sets cookie when user logs in
+	#function that sets cookie when user logs in
 	def login(self, user):
 		self.set_secure_cookie("user_id", str(user.key().id()))
 
-#function that deletes cookie when user logs out
+	#function that deletes cookie when user logs out
 	def logout(self):
 		self.response.headers.add_header("Set-Cookie", "user_id=; Path=/")
 
-#AppEngine function that runs on each process
+	#AppEngine function that runs on each process
 	def initialize(self, *a, **kw):
 		webapp2.RequestHandler.initialize(self, *a, **kw)
 		uid = self.read_secure_cookie("user_id")
@@ -114,24 +114,24 @@ class User(db.Model):
 
 #class functions that can be run on class User instead of an instance of the class
 
-#get user with userid
+	#get user with userid
 	@classmethod
 	def by_id(cls, uid):
 		return User.get_by_id(uid, parent = users_key())
 
-#get user by name
+	#get user by name
 	@classmethod
 	def by_name(cls, name):
 		u = User.all().filter("name =", name).get()
 		return u
 
-#hash password when registering
+	#hash password when registering
 	@classmethod
 	def register(cls, name, pw, email = None):
 		pw_hash = make_pw_hash(name, pw)
 		return User(parent = users_key(), name = name, pw_hash = pw_hash, email = email)
 
-#check hashed password when logging in
+	#check hashed password when logging in
 	@classmethod
 	def login(cls, name, pw):
 		u=cls.by_name(name)
@@ -146,7 +146,7 @@ class Post(db.Model):
 	last_modified = db.DateTimeProperty(auto_now = True)
 	user = db.ReferenceProperty(User, required = True, collection_name = "posts")
 
-#renders line breaks correctly after posting
+	#renders line breaks correctly after posting
 	def render(self):
 		self._render_text = self.content.replace("\n", "<br>")
 		return render_str("post.html", p=self)
@@ -156,13 +156,13 @@ class Likes(db.Model):
 	post = db.ReferenceProperty(Post, required= True)
 	user = db.ReferenceProperty(User, required = True)
 
-#get number of likes for a post by id
+	#get number of likes for a post by id
 	@classmethod
 	def post_likes(cls, post_id):
 		l=Likes.all().filter("post =", post_id)
 		return l.count()
 
-#get number of likes for a post and user id
+	#get number of likes for a post and user id
 	@classmethod
 	def check_likes(cls, post_id, user_id):
 		l=Likes.all().filter("post =", post_id).filter("user =", user_id)
@@ -175,13 +175,13 @@ class Comments(db.Model):
 	created = db.DateTimeProperty(auto_now_add = True)
 	text = db.TextProperty(required = True)
 
-#returns number of comments a post has
+	#returns number of comments a post has
 	@classmethod
 	def comment_count(cls, post_id):
 		c = Comments.all().filter("post =", post_id)
 		return c.count()
 
-#returns all the comments for a specific post
+	#returns all the comments for a specific post
 	@classmethod
 	def post_comments(cls, post_id):
 		c = Comments.all().filter("post =", post_id).order("created")
@@ -193,7 +193,7 @@ class Signup(Handler):
 	def get(self):
 		self.render("signup.html")
 
-#reads the user entered information on the register page and checks if its valid
+	#reads the user entered information on the register page and checks if its valid
 	def post(self):
 		have_error = False
 		self.username = self.request.get("username")
@@ -223,7 +223,7 @@ class Signup(Handler):
 		else:
 			self.done()
 
-#not needed. overwritten in Register class
+	#not needed. overwritten in Register class
 	def done(self, *a, **kw):
 		raise NotImplementedError
 
@@ -282,27 +282,27 @@ class MainPage(Handler):
 #permalink page of post after successfully submitted from new post page
 class PostPage(Handler):
 	def get(self, post_id):
-#gets key of the post
+		#gets key of the post
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 
-#if post does not exist report error
+		#if post does not exist report error
 		if not post:
 			self.error(404)
 			return
 
-#get likes and comments for each post searched by post key (id)
+		#get likes and comments for each post searched by post key (id)
 		likes = Likes.post_likes(post)
 		comment_content = Comments.post_comments(post)
 		comments_total = Comments.comment_count(post)
 
-#render page with content, likes, comments, and buttons to interact with
+		#render page with content, likes, comments, and buttons to interact with
 		self.render("permalink.html", post = post, likes = likes,
 			comments_total = comments_total, comment_content = comment_content)
 
 
 	def post(self, post_id):
-#gets required parameters
+		#gets required parameters
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 		user_id = User.by_name(self.user.name)
@@ -311,35 +311,35 @@ class PostPage(Handler):
 		comment_content = Comments.post_comments(post)
 		comments_total = Comments.comment_count(post)
 
-#checks if user is logged in
+		#checks if user is logged in
 		if self.user:
-#checks if the user clicked on like
+			#checks if the user clicked on like
 			if self.request.get("likes"):
-#checks and makes sure user is not the author of the post
+				#checks and makes sure user is not the author of the post
 				if post.user.key().id() != User.by_name(self.user.name).key().id():
-#checks to make sure user has not liked the post previuosly
+					#checks to make sure user has not liked the post previuosly
 					if prev_like == 0:
-#likes the post. increments likes by 1
+						#likes the post. increments likes by 1
 						l = Likes(post = post, user = User.by_name(self.user.name))
 						l.put()
 						time.sleep(0.1)
 						self.redirect("/%s" % str(post.key().id()))#could use % post_id
 
-#if post already liked throws an error
+					#if post already liked throws an error
 					else:
 						error = "You can only like a post once"
 						self.render("permalink.html", post = post, likes = likes, error = error,
 							comment_content = comment_content, comments_total = comments_total)
 
-#if user is the author of post throws an error
+				#if user is the author of post throws an error
 				else:
 					error = "You can't like your own post"
 					self.render("permalink.html", post = post, likes = likes, error = error,
 						comments_total = comments_total, comment_content = comment_content)
 
-#checks to see if user wanted to add a comment
+			#checks to see if user wanted to add a comment
 			if self.request.get("add_comment"):
-#if the comment is not empty comment is posted and stored in database.
+				#if the comment is not empty comment is posted and stored in database.
 				comment_text = self.request.get("comment_text")
 				if comment_text:
 					c = Comments(post = post, user = User.by_name(self.user.name), text = comment_text)
@@ -347,39 +347,39 @@ class PostPage(Handler):
 					time.sleep(0.2)
 					self.redirect("/%s" % str(post.key().id()))#could use % post_id
 
-#if there is no content in the comment field throws an error.
+				#if there is no content in the comment field throws an error.
 				else:
 					comment_error = "You need to enter a comment before you can post it"
 					self.render("permalink.html", post = post, likes=likes,  comment_error= comment_error,
 						comment_content = comment_content, comments_total = comments_total)
 
-#checks to see if user clicked edit post
+			#checks to see if user clicked edit post
 			if self.request.get("edit"):
-#checks to see if user is the author of the post and if they are lets them edit it
+				#checks to see if user is the author of the post and if they are lets them edit it
 				if post.user.key().id() == User.by_name(self.user.name).key().id():
 					self.redirect("/edit/%s" % str(post.key().id()))#could use % post_id
 
-#if user is not the author throws an error
+				#if user is not the author throws an error
 				else:
 					error = "This post is not yours. You cannot edit it."
 					self.render("permalink.html", post = post, likes = likes, error = error,
 						comments_total = comments_total, comment_content = comment_content)
 
-#checks to see if user clicked delete
+			#checks to see if user clicked delete
 			if self.request.get("delete"):
-#checks to see if user is the author of psot and if they are lets them delete it
+				#checks to see if user is the author of psot and if they are lets them delete it
 				if post.user.key().id() == User.by_name(self.user.name).key().id():
 					db.delete(key)
 					time.sleep(0.1)
 					self.redirect("/")
 
-#if the user is not the author throws an error
+				#if the user is not the author throws an error
 				else:
 					error = "You can only delete your own posts"
 					self.render("permalink.html", likes = likes, post = post, error = error,
 						comment_content = comment_content, comments_total = comments_total)
 
-#if the user is not signed in redirected to the login page
+		#if the user is not signed in redirected to the login page
 		else:
 			self.redirect("/login")
 
@@ -394,56 +394,77 @@ class NewPost(Handler):
 			self.redirect("/login")
 
 	def post(self):
-		subject = self.request.get("subject")
-		content = self.request.get("content")
-		user_id = User.by_name(self.user.name)
+		if self.user:
+			subject = self.request.get("subject")
+			content = self.request.get("content")
+			user_id = User.by_name(self.user.name)
 
-		if subject and content:
-			p = Post(parent = blog_key(), subject = subject, content = content, user = user_id)
-			p.put()
-			self.redirect("/%s" % str(p.key().id()))
+			if subject and content:
+				p = Post(parent = blog_key(), subject = subject, content = content, user = user_id)
+				p.put()
+				self.redirect("/%s" % str(p.key().id()))
+
+			else:
+				error = "Subject and content are both required!"
+				self.render("newpost.html", subject = subject, content = content, error = error)
 
 		else:
-			error = "Subject and content are both required!"
-			self.render("newpost.html", subject = subject, content = content, error = error)
+			error = "You need to be logged in to perform that action"
+			self.render("newpost.html", error = error)
 
 #handler for editing a post
 class EditPost(Handler):
 
 	def get(self, post_id):
-#gets the post key
+		#gets the post key
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 
-#renders edit page with post subject and content filled in with data from the datastore
-		self.render("edit.html", subject = post.subject, content = post.content)
+		#check to make sure user is logged in before rendering edit page and that they are the author of the post.
+		if self.user:
+			if post.user.key().id() == User.by_name(self.user.name).key().id():
+
+				#renders edit page with post subject and content filled in with data from the datastore
+				self.render("edit.html", subject = post.subject, content = post.content)
+
+		else:
+			error = "You need to be logged in to do that."
+			self.render("edit.html", error = error)
 
 
 	def post(self, post_id):
-#gets the post key
+		#gets the post key
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 
-#if user clicks update get the subject and the content from the form
+		#if user clicks update get the subject and the content from the form
 		if self.request.get("update"):
 			subject = self.request.get("subject")
 			content = self.request.get("content")
 
-#if user provides subject and content update the post and save it in the datastore
-			if subject and content:
+			#checks that the logged in user is the user of the post.
+			if post.user.key().id() == User.by_name(self.user.name).key().id():
 
-				post.subject = subject
-				post.content = content
-				post.put()
-				time.sleep(0.1)
-				self.redirect("/%s" % str(post.key().id()))#could use % post_id
 
-#if user does not provide both a subject and content throw an error
+				#if user provides subject and content update the post and save it in the datastore
+				if subject and content:
+
+					post.subject = subject
+					post.content = content
+					post.put()
+					time.sleep(0.1)
+					self.redirect("/%s" % str(post.key().id()))#could use % post_id
+
+				#if user does not provide both a subject and content throw an error
+				else:
+					error = "Subject and content are both needed"
+					self.render("edit.html", subject = subject, content = content, error = error)
+
 			else:
-				error = "Subject and content are both needed"
+				error = "You can't edit other user's posts"
 				self.render("edit.html", subject = subject, content = content, error = error)
 
-#if user clicks cancel redirect to the permalink post page
+		#if user clicks cancel redirect to the permalink post page
 		elif self.request.get("cancel"):
 			self.redirect("/%s" % str(post.key().id()))#could use % post_id
 
@@ -451,53 +472,72 @@ class EditPost(Handler):
 class PostComment(Handler):
 	def get(self, post_id, comment_id):
 
-#gets post and comment from post id and comment id
+		#gets post and comment from post id and comment id
 		post = Post.get_by_id(int(post_id), parent=blog_key())
 		comment = Comments.get_by_id(int(comment_id))
 
-#renders the comment edit page
-		self.render("comment.html", comment_text = comment.text)
+		#renders the comment edit page if the user is signed in
+		if self.user:
+
+			self.render("comment.html", comment_text = comment.text)
+
+		else:
+			error = "You need to be logged in to post a comment"
+			self.render("comment.html", error = error)
 
 	def post(self, post_id, comment_id):
 
-#gets post key and comment id
+		#gets post key and comment id
 
 		key = db.Key.from_path("Post", int(post_id), parent = blog_key())
 		post = db.get(key)
 		comment = Comments.get_by_id(int(comment_id))
 
-#if user clicks update comment and there is text in the textbox update the comment datastore with the new input
-		if self.request.get("update_comment"):
+		#checks to make sure user is logged in before posting a comment
+		if self.user:
+
+			#if user clicks update comment and there is text in the textbox update the comment datastore with the new input
+			if self.request.get("update_comment"):
 
 
-			if self.request.get("comment_text"):
+				if self.request.get("comment_text"):
 
-				comment.text = self.request.get("comment_text")
-				comment.put()
-				time.sleep(0.1)
+					comment.text = self.request.get("comment_text")
+					comment.put()
+					time.sleep(0.1)
+					self.redirect("/%s" % str(post.key().id()))
+
+				#if the comment has no content throw an error
+				else:
+					error = "Comment needs to have content"
+					self.render("comment.html", error = error)
+
+			#if user clicks cancel to edit comment redirect to permalink post page
+			elif self.request.get("cancel_comment"):
 				self.redirect("/%s" % str(post.key().id()))
 
-#if the comment has no content throw an error
-			else:
-				error = "Comment needs to have content"
-				self.render("comment.html", error = error)
-
-#if user clicks cancel to edit comment redirect to permalink post page
-		elif self.request.get("cancel_comment"):
-			self.redirect("/%s" % str(post.key().id()))
+		else:
+			error = "You need to be logged in to post a comment"
+			self.render("comment.html", error = error)
 
 #handler for deleting comment
 class DeleteComment(Handler):
 	def get(self, post_id, comment_id):
 
-#get the comment by comment id
+		#get the comment by comment id
 		comment = Comments.get_by_id(int(comment_id))
 
-#delete the comment and redirect to permalink post page
-		if comment:
-			db.delete(comment)
-			time.sleep(0.1)
-			self.redirect("/%s" % str(post_id))
+		#make sure user owns this comment before deleting
+		if comment.user.name == self.user.name:
+
+			#delete the comment and redirect to permalink post page
+			if comment:
+				db.delete(comment)
+				time.sleep(0.1)
+				self.redirect("/%s" % str(post_id))
+
+		else:
+			self.write("You can't delete a comment that you didn't post.")
 
 
 app = webapp2.WSGIApplication([('/', MainPage),
